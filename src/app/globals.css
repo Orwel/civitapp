@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Paleta y tipografía — manual de marca (public/Logo/Manual de marca/) */
+:root {
+  --brand-navy: #0f172a;
+  --brand-indigo: #1e3a8a;
+  --brand-blue: #3b82f6;
+  --brand-blue-soft: #93c5fd;
+  --brand-slate: #f1f5f9;
+  /** Rojo bandera — urgencia, alertas (uso puntual). */
+  --brand-flag: #dc2626;
+  --font-syne: "Syne", system-ui, sans-serif;
+  --font-dm-sans: "DM Sans", system-ui, sans-serif;
+
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-hover: #e8eef5;
+  --border: #cbd5e1;
+  --muted: #64748b;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-foreground: #ffffff;
+  --card-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.06);
+  --card-radius: 0.75rem;
+  --hero-from: #f1f5f9;
+  --hero-via: #e0e7ff;
+  --hero-to: #dbeafe;
+  --civitapp-blue: #1e3a8a;
+  --civitapp-blue-light: #3b82f6;
+  --civitapp-blue-lighter: #60a5fa;
+  --civitapp-sky: #93c5fd;
+  --civitapp-sky-pale: #bfdbfe;
+  --civitapp-charcoal: #0f172a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-flag: #f87171;
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --surface: #1e293b;
+    --surface-hover: #334155;
+    --border: #334155;
+    --muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-foreground: #ffffff;
+    --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    --card-radius: 0.75rem;
+    --hero-from: #1e1b2e;
+    --hero-via: #172554;
+    --hero-to: #0f172a;
+    --civitapp-blue: #60a5fa;
+    --civitapp-blue-light: #93c5fd;
+    --civitapp-blue-lighter: #bfdbfe;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+}
+@media (prefers-color-scheme: light) {
+  html {
+    color-scheme: light;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-weight: 500;
+}
+
+/* Hero marketing — mismo azul base; relieve muy sutil (sin bloques claros). */
+.brand-hero-shell {
+  position: relative;
+  background-color: var(--brand-navy);
+  background-image: radial-gradient(
+    ellipse 80% 50% at 50% 0%,
+    rgba(30, 58, 138, 0.22) 0%,
+    transparent 55%
+  );
+  overflow: hidden;
+}
+
+.brand-hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}

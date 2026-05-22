@@ -1,0 +1,12 @@
+export type InstrumentStatus =
+  | "NO_INICIADO"
+  | "EN_PREPARACION"
+  | "LISTO_PARA_FIRMAR"
+  | "EN_FIRMA"
+  | "FIRMADO"
+  | "LISTO_PARA_EJECUTAR"
+  | "EJECUTADO"
+  | "EN_RESPUESTA"
+  | "COMPLETADO"
+  | "BLOQUEADO"
+  | "CANCELADO";

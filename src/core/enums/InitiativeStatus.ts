@@ -1,0 +1,26 @@
+export type InitiativeStatus =
+  | "BORRADOR"
+  | "EN_CONSTRUCCION"
+  | "LISTA_PARA_FIRMAS"
+  | "LISTA_PARA_RADICAR"
+  | "RADICADA"
+  | "EN_TRAMITE"
+  | "DECIDIDA"
+  | "EN_CUMPLIMIENTO"
+  | "CERRADA"
+  | "PAUSADA"
+  | "ARCHIVADA";
+
+export const INITIATIVE_STATUS: InitiativeStatus[] = [
+  "BORRADOR",
+  "EN_CONSTRUCCION",
+  "LISTA_PARA_FIRMAS",
+  "LISTA_PARA_RADICAR",
+  "RADICADA",
+  "EN_TRAMITE",
+  "DECIDIDA",
+  "EN_CUMPLIMIENTO",
+  "CERRADA",
+  "PAUSADA",
+  "ARCHIVADA",
+];

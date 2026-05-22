@@ -1,0 +1,104 @@
+-- Enums para Civitapp
+
+CREATE TYPE initiative_status AS ENUM (
+  'BORRADOR',
+  'EN_CONSTRUCCION',
+  'LISTA_PARA_FIRMAS',
+  'LISTA_PARA_RADICAR',
+  'RADICADA',
+  'EN_TRAMITE',
+  'DECIDIDA',
+  'EN_CUMPLIMIENTO',
+  'CERRADA',
+  'PAUSADA',
+  'ARCHIVADA'
+);
+
+CREATE TYPE initiative_subtype AS ENUM (
+  'DERECHO_PETICION',
+  'TUTELA',
+  'POPULAR',
+  'GRUPO',
+  'INCONSTITUCIONALIDAD',
+  'PROYECTO_NORMATIVO'
+);
+
+CREATE TYPE instrument_status AS ENUM (
+  'NO_INICIADO',
+  'EN_PREPARACION',
+  'LISTO_PARA_FIRMAR',
+  'EN_FIRMA',
+  'FIRMADO',
+  'LISTO_PARA_EJECUTAR',
+  'EJECUTADO',
+  'EN_RESPUESTA',
+  'COMPLETADO',
+  'BLOQUEADO',
+  'CANCELADO'
+);
+
+CREATE TYPE instrument_kind AS ENUM (
+  'DOC_PRINCIPAL',
+  'ANEXOS',
+  'FIRMAS',
+  'RADICACION',
+  'SEGUIMIENTO',
+  'INSISTENCIA',
+  'QUEJA_CONTROL',
+  'IMPUGNACION',
+  'CUMPLIMIENTO',
+  'OTRO'
+);
+
+CREATE TYPE role_global AS ENUM (
+  'ADMIN',
+  'USER',
+  'POLITICAL_VERIFIED'
+);
+
+CREATE TYPE role_in_initiative AS ENUM (
+  'OWNER',
+  'LEADER',
+  'MEMBER',
+  'OBSERVER',
+  'POLITICAL_SPONSOR'
+);
+
+CREATE TYPE member_status AS ENUM (
+  'INVITED',
+  'ACTIVE',
+  'REMOVED',
+  'BANNED'
+);
+
+CREATE TYPE leader_type AS ENUM (
+  'GENERAL',
+  'LEGAL',
+  'COMMS',
+  'FIELD'
+);
+
+CREATE TYPE initiative_visibility AS ENUM (
+  'PUBLIC',
+  'PRIVATE'
+);
+
+CREATE TYPE signature_request_status AS ENUM (
+  'OPEN',
+  'CLOSED',
+  'CANCELED'
+);
+
+CREATE TYPE office_type AS ENUM (
+  'CONGRESISTA',
+  'SENADOR',
+  'REPRESENTANTE',
+  'CONCEJAL',
+  'OTRO'
+);
+
+CREATE TYPE verification_status AS ENUM (
+  'PENDING',
+  'VERIFIED',
+  'REJECTED'
+);
