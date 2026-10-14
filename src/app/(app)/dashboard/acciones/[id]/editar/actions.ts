@@ -4,6 +4,7 @@ import { createClient } from "@/infrastructure/supabase/server";
 import { createRepositories } from "@/infrastructure/repositories";
 import { ACTION_DOCUMENTS_BUCKET } from "@/lib/actionDocuments";
 import type { ActionContentMode } from "@/core/types/actionState";
+import { readStoredTemplate } from "@/core/templates/evaluate";
 
 import { revalidateAllActionPaths } from "@/lib/revalidateActionPaths";
 
@@ -91,7 +92,7 @@ export async function setActionContentModeAction(
   try {
     await repos.actions.update(actionId, {
       content_mode: mode,
-      ...(mode === "TEXT" ? { content_pdf_storage_path: null } : {}),
+      ...(mode !== "PDF" ? { content_pdf_storage_path: null } : {}),
     });
     revalidateAction(actionId);
     return { error: null };
@@ -117,10 +118,16 @@ export async function saveActionDraftAction(
 
   const repos = createRepositories(supabase);
   try {
+    // Acciones creadas desde plantilla: conservar respuestas y marcar edición manual.
+    const current = await repos.actions.getById(actionId);
+    const stored = readStoredTemplate(current?.content_data);
+    const isTemplate = current?.content_mode === "TEMPLATE" && stored !== null;
     await repos.actions.update(actionId, {
-      content_mode: "TEXT",
+      content_mode: isTemplate ? "TEMPLATE" : "TEXT",
       content_body: payload.content_body,
-      content_data: payload.content_data,
+      content_data: stored
+        ? { ...payload.content_data, template: { ...stored, body_edited: true } }
+        : payload.content_data,
       ...(payload.title !== undefined ? { title: payload.title } : {}),
       ...(payload.summary !== undefined ? { summary: payload.summary } : {}),
     });

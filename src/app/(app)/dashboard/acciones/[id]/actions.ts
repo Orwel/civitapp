@@ -15,6 +15,7 @@ import {
   signAction,
 } from "@/application/actions";
 import { profileForSigning } from "@/application/actions/signerProfile";
+import { templateBlockingIssues } from "@/application/actions/templates";
 import type {
   ActionState,
   FinalizadoResult,
@@ -37,6 +38,15 @@ export async function publishActionAction(actionId: string) {
     const repos = createRepositories(supabase);
     const action = await repos.actions.getById(actionId);
     if (action) {
+      const issues = templateBlockingIssues(action);
+      if (issues.length > 0) {
+        return {
+          error: `Completa la plantilla antes de publicar: ${issues
+            .slice(0, 3)
+            .map((i) => i.message)
+            .join(" ")}${issues.length > 3 ? ` (y ${issues.length - 3} más)` : ""}`,
+        };
+      }
       let hash: string | null = null;
       if (action.content_mode === "PDF" && action.content_pdf_storage_path) {
         const { data: pdfBlob } = await supabase.storage

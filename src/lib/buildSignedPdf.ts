@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { formatSignedAtColombia } from "./formatColombiaTime";
+import { htmlToPdfBlocks } from "./htmlToPdfBlocks";
 
 export interface SignatureForPdf {
   snapshot_full_name: string;
@@ -137,6 +138,127 @@ async function appendSignaturePages(
   }
 }
 
+const PAGE: [number, number] = [595, 842];
+const MARGIN_X = 60;
+const MARGIN_TOP = 790;
+const MARGIN_BOTTOM = 60;
+const BODY_SIZE = 10.5;
+const LINE_HEIGHT = 15;
+
+type PdfFont = Awaited<ReturnType<PDFDocument["embedFont"]>>;
+type Word = { text: string; bold: boolean };
+
+/** Reemplaza caracteres que Helvetica (WinAnsi) no puede codificar. */
+function makeSanitizer(font: PdfFont) {
+  const cache = new Map<string, string>();
+  return (text: string) =>
+    Array.from(text)
+      .map((ch) => {
+        const hit = cache.get(ch);
+        if (hit !== undefined) return hit;
+        let out = ch;
+        try {
+          font.widthOfTextAtSize(ch, 10);
+        } catch {
+          out = /\s/.test(ch) ? " " : "?";
+        }
+        cache.set(ch, out);
+        return out;
+      })
+      .join("");
+}
+
+/** Dibuja el cuerpo HTML con ajuste de línea, negritas y paginación. */
+async function drawBodyPages(doc: PDFDocument, title: string, body: string) {
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const clean = makeSanitizer(font);
+  const maxWidth = PAGE[0] - MARGIN_X * 2;
+
+  let page = doc.addPage(PAGE);
+  let y = MARGIN_TOP;
+  const ensureSpace = (needed: number) => {
+    if (y - needed < MARGIN_BOTTOM) {
+      page = doc.addPage(PAGE);
+      y = MARGIN_TOP;
+    }
+  };
+
+  page.drawText(clean(title.slice(0, 200)), { x: MARGIN_X, y, size: 14, font: fontBold, maxWidth });
+  y -= 30;
+
+  for (const block of htmlToPdfBlocks(body)) {
+    const isHeading = block.kind === "heading";
+    const size = isHeading ? 11.5 : BODY_SIZE;
+    const indent = block.kind === "item" ? 18 : 0;
+    const width = maxWidth - indent;
+    if (isHeading) {
+      y -= 6;
+      ensureSpace(LINE_HEIGHT * 2);
+    }
+
+    let firstLine = true;
+    const drawLine = (line: Word[]) => {
+      while (line.length && !line[line.length - 1].text.trim()) line.pop();
+      ensureSpace(LINE_HEIGHT);
+      if (firstLine && block.marker) {
+        page.drawText(block.marker, { x: MARGIN_X, y, size, font });
+      }
+      let x = MARGIN_X + indent;
+      for (const w of line) {
+        const f = w.bold ? fontBold : font;
+        page.drawText(w.text, { x, y, size, font: f });
+        x += f.widthOfTextAtSize(w.text, size);
+      }
+      y -= LINE_HEIGHT;
+      firstLine = false;
+    };
+
+    for (const forced of block.lines) {
+      const words: Word[] = [];
+      for (const run of forced) {
+        for (const part of clean(run.text).split(/(\s+)/)) {
+          if (part) words.push({ text: part, bold: run.bold || isHeading });
+        }
+      }
+      while (words.length && !words[0].text.trim()) words.shift();
+      if (!words.length) continue;
+
+      let line: Word[] = [];
+      let lineWidth = 0;
+      for (const w of words) {
+        const f = w.bold ? fontBold : font;
+        const ww = f.widthOfTextAtSize(w.text, size);
+        const isSpace = !w.text.trim();
+        if (isSpace && line.length === 0) continue;
+        if (!isSpace && lineWidth + ww > width && line.length > 0) {
+          drawLine(line);
+          line = [];
+          lineWidth = 0;
+        }
+        if (!isSpace && ww > width) {
+          // Palabra más ancha que la línea (URLs, hashes): cortar por caracteres.
+          let chunk = "";
+          for (const ch of w.text) {
+            if (chunk && f.widthOfTextAtSize(chunk + ch, size) > width) {
+              drawLine([{ text: chunk, bold: w.bold }]);
+              chunk = "";
+            }
+            chunk += ch;
+          }
+          line = [{ text: chunk, bold: w.bold }];
+          lineWidth = f.widthOfTextAtSize(chunk, size);
+          continue;
+        }
+        line.push(w);
+        lineWidth += ww;
+      }
+      if (line.length) drawLine(line);
+    }
+    y -= isHeading ? 2 : 6;
+  }
+}
+
 export async function buildSignedPdf(input: BuildSignedPdfInput): Promise<Buffer> {
   const { title, body, originalPdfBytes, signatures, documentHash } = input;
 
@@ -151,18 +273,7 @@ export async function buildSignedPdf(input: BuildSignedPdfInput): Promise<Buffer
     }
   } else {
     doc = await PDFDocument.create();
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const page = doc.addPage([595, 842]);
-    let y = 800;
-    page.drawText(title.slice(0, 200), { x: 50, y, size: 14, font: fontBold });
-    y -= 30;
-    const lines = (body ?? "").slice(0, 8000).split("\n");
-    for (const line of lines) {
-      if (y < 80) break;
-      page.drawText(line.slice(0, 90), { x: 50, y, size: 10, font, maxWidth: 495 });
-      y -= 14;
-    }
+    await drawBodyPages(doc, title, body ?? "");
   }
 
   await appendSignaturePages(doc, signatures, documentHash);

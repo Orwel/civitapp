@@ -14,6 +14,7 @@ import {
 } from "@/lib/actionDocuments";
 import { getActionDashboardPath } from "@/lib/actionStateRoutes";
 import { createWizardActionAction, finalizeWizardPdfAction } from "./actions";
+import { getTemplateForActionType } from "@/lib/templates/catalog";
 import {
   MIN_FIRMA_DEADLINE_DAYS,
   minDeadlineLocalInput,
@@ -77,7 +78,7 @@ export default function NuevaAccionPage() {
   const [summary, setSummary] = useState("");
   const [minimumRequired, setMinimumRequired] = useState(10);
   const [draftCollab, setDraftCollab] = useState<DraftCollab>("OPEN_INVITED");
-  const [contentMode, setContentMode] = useState<ActionContentMode>("TEXT");
+  const [contentMode, setContentMode] = useState<ActionContentMode>("TEMPLATE");
   const [closeRule, setCloseRule] = useState<CloseRule>("QUORUM_OR_DEADLINE");
   const [deadline, setDeadline] = useState("");
   const [legalAccepted, setLegalAccepted] = useState(false);
@@ -219,6 +220,11 @@ export default function NuevaAccionPage() {
     }
 
     const requestId = ensureClientRequestId();
+    const typeSlug = actionTypes.find((t) => t.id === actionTypeId)?.slug;
+    const mode: ActionContentMode =
+      contentMode === "TEMPLATE" && !(typeSlug && getTemplateForActionType(typeSlug))
+        ? "TEXT"
+        : contentMode;
     setLoading(true);
     try {
       const res = await createWizardActionAction({
@@ -227,7 +233,7 @@ export default function NuevaAccionPage() {
         summary: summary.trim() || null,
         minimum_required: minimumRequired,
         draft_collaboration: draftCollab,
-        content_mode: contentMode,
+        content_mode: mode,
         signature_close_rule: closeRule,
         firma_deadline_at:
           closeRule !== "QUORUM_ONLY" && deadline
@@ -268,7 +274,11 @@ export default function NuevaAccionPage() {
       }
 
       clearWizardDraft();
-      router.replace(getActionDashboardPath(actionId, "EN_CREACION"));
+      router.replace(
+        mode === "TEMPLATE"
+          ? `/dashboard/acciones/${actionId}/plantilla`
+          : getActionDashboardPath(actionId, "EN_CREACION")
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear la acción");
     } finally {
@@ -277,6 +287,11 @@ export default function NuevaAccionPage() {
   }
 
   const minDeadline = minDeadlineLocalInput();
+  const selectedType = actionTypes.find((t) => t.id === actionTypeId);
+  const template = selectedType ? getTemplateForActionType(selectedType.slug) : null;
+  /** Si el tipo no tiene plantilla, "TEMPLATE" cae a editor en blanco. */
+  const effectiveMode: ActionContentMode =
+    contentMode === "TEMPLATE" && !template ? "TEXT" : contentMode;
 
   return (
     <div className="flex-1 overflow-auto px-4 py-6 lg:px-8">
@@ -352,17 +367,41 @@ export default function NuevaAccionPage() {
         {step === 2 && (
           <div className="space-y-4">
             <p className="text-sm font-semibold">¿Cómo será el documento?</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+              Hacerlo en Civitapp
+            </p>
+            {template && (
+              <label className="flex gap-3 p-3 rounded-card border cursor-pointer has-[:checked]:border-[var(--accent)]">
+                <input
+                  type="radio"
+                  name="contentMode"
+                  checked={effectiveMode === "TEMPLATE"}
+                  onChange={() => setContentMode("TEMPLATE")}
+                />
+                <span className="text-sm">
+                  <strong>Con plantilla guiada</strong>{" "}
+                  <span className="text-[var(--accent)] text-xs font-semibold">Recomendado</span>
+                  <span className="block text-[var(--muted)]">
+                    Respondes preguntas paso a paso y Civitapp arma el escrito de{" "}
+                    {template.name.toLowerCase()}. Luego puedes ajustarlo en el editor.
+                  </span>
+                </span>
+              </label>
+            )}
             <label className="flex gap-3 p-3 rounded-card border cursor-pointer has-[:checked]:border-[var(--accent)]">
               <input
                 type="radio"
                 name="contentMode"
-                checked={contentMode === "TEXT"}
+                checked={effectiveMode === "TEXT"}
                 onChange={() => setContentMode("TEXT")}
               />
               <span className="text-sm">
-                <strong>Redactar en Civitapp</strong> — editor de texto enriquecido (HTML).
+                <strong>Desde cero en el editor</strong> — redactas el escrito completo tú mismo.
               </span>
             </label>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)] pt-1">
+              Traerlo hecho
+            </p>
             <label className="flex gap-3 p-3 rounded-card border cursor-pointer has-[:checked]:border-[var(--accent)]">
               <input
                 type="radio"
@@ -543,9 +582,11 @@ export default function NuevaAccionPage() {
               >
                 {loading
                   ? "Creando…"
-                  : contentMode === "PDF"
+                  : effectiveMode === "PDF"
                     ? "Crear y abrir firmas"
-                    : "Crear y abrir editor"}
+                    : effectiveMode === "TEMPLATE"
+                      ? "Crear y abrir asistente"
+                      : "Crear y abrir editor"}
               </button>
             </div>
           </form>

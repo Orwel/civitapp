@@ -7,6 +7,8 @@ import { createAction, transitionAction } from "@/application/actions";
 import { uniqueSlug } from "@/lib/slugify";
 import type { ActionContentMode } from "@/core/types/actionState";
 import { revalidateAllActionPaths } from "@/lib/revalidateActionPaths";
+import { getTemplateForActionType } from "@/lib/templates/catalog";
+import { initialTemplateContent } from "@/application/actions/templates";
 
 const MIN_DEADLINE_DAYS = 5;
 
@@ -64,13 +66,40 @@ export async function createWizardActionAction(
 
   try {
     const repos = createRepositories(supabase);
+
+    let content: { content_body: string | null; content_data: Record<string, unknown> } = {
+      content_body: null,
+      content_data: {},
+    };
+    let contentMode: ActionContentMode = input.content_mode === "PDF" ? "PDF" : "TEXT";
+    if (input.content_mode === "TEMPLATE") {
+      const types = await repos.catalog.getActionTypes();
+      const typeSlug = types.find((t) => t.id === input.action_type_id)?.slug;
+      const def = typeSlug ? getTemplateForActionType(typeSlug) : null;
+      if (!def) {
+        return { error: "Este tipo de acción aún no tiene plantilla guiada.", actionId: null };
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, cedula")
+        .eq("id", user.id)
+        .maybeSingle();
+      content = initialTemplateContent(def, {
+        fullName: profile?.full_name ?? null,
+        cedula: profile?.cedula ?? null,
+        email: user.email ?? null,
+      });
+      contentMode = "TEMPLATE";
+    }
+
     const action = await createAction(repos, {
       action_type_id: input.action_type_id,
       title: input.title.trim(),
       summary: input.summary?.trim() || null,
       slug: uniqueSlug(input.title),
-      content_mode: input.content_mode === "PDF" ? "PDF" : "TEXT",
-      content_data: {},
+      content_mode: contentMode,
+      content_body: content.content_body,
+      content_data: content.content_data,
       minimum_required: Math.max(1, input.minimum_required),
       created_by: user.id,
       draft_collaboration: input.draft_collaboration,
