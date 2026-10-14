@@ -14,6 +14,12 @@
 | 031_meetups_validation | Modos presencial/online/híbrido en eventos | Aplicada |
 | 032_profiles_onboarded | `profiles.onboarded_at` | Aplicada |
 | 033_action_roles_insert_creator | RLS: creador puede insertar roles iniciales | Aplicada |
-| 034_action_docs_storage_update | Storage: UPDATE PDF borrador (upsert) | Pendiente |
+| 034_action_docs_storage_update | Storage: UPDATE PDF borrador (upsert) | Aplicada |
+| 034_actions_idempotency | `client_request_id` + índice único por creador | Aplicada |
+| 035_action_signature_storage | Storage: firmantes suben su imagen de firma | Aplicada |
+
+Verificado contra el esquema remoto el 2026-10-14. Las migraciones se aplican a mano (SQL editor), por eso `supabase_migrations` está vacía.
+
+Plantillas guiadas (v1) no requieren migración: usan `content_data.template` y el valor `TEMPLATE` del enum `action_content_mode` (022).
 
 Si añades una migración nueva, súmala a esta tabla.
