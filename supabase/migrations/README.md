@@ -17,6 +17,7 @@
 | 034_action_docs_storage_update | Storage: UPDATE PDF borrador (upsert) | Aplicada |
 | 034_actions_idempotency | `client_request_id` + índice único por creador | Aplicada |
 | 035_action_signature_storage | Storage: firmantes suben su imagen de firma | Aplicada |
+| 036_flexible_action_types | Tipos configurables, hitos por tipo, días hábiles, firma simple con datos y autorización, Storage endurecido (corrige subida de firma de 035) | **Pendiente** |
 
 Verificado contra el esquema remoto el 2026-10-14. Las migraciones se aplican a mano (SQL editor), por eso `supabase_migrations` está vacía.
 
