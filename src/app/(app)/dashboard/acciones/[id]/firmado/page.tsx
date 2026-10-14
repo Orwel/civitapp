@@ -7,7 +7,7 @@ export default async function FirmadoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { action, publicAction, signatures, isLeader } = await loadActionStatePage(
+  const { action, publicAction, signatures, isLeader, actionType, milestones } = await loadActionStatePage(
     id,
     "FIRMADO"
   );
@@ -18,6 +18,8 @@ export default async function FirmadoPage({
       publicAction={publicAction}
       isLeader={isLeader}
       signatures={signatures}
+      actionType={actionType}
+      milestones={milestones}
     />
   );
 }

@@ -41,9 +41,8 @@ export interface ActionSignatureRow {
   signer_geo_region: string | null;
   signer_geo_country: string | null;
   signature_hash: string | null;
-  snapshot_signature_storage_path: string;
-  client_ip: string | null;
-  user_agent: string | null;
+  snapshot_signature_storage_path: string | null;
+  signature_level: string | null;
 }
 
 export interface IConstitutionalActionRepository {
@@ -101,15 +100,25 @@ export interface IConstitutionalActionRepository {
       finalizado_result?: FinalizadoResult;
       radicado_number?: string;
       radicado_entity_name?: string;
+      radicado_at?: string;
+      milestone_code?: string;
     }
   ): Promise<ConstitutionalAction>;
+  setMilestone(actionId: string, code: string): Promise<ConstitutionalAction>;
+  setFinalDocument(actionId: string, storagePath: string, sha256: string): Promise<void>;
   signAction(
     actionId: string,
     signerUserId: string,
     snapshot: {
       full_name: string;
       cedula: string;
-      signature_path: string;
+      signature_path: string | null;
+      signature_level: string;
+      address?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      data_consent_at: string;
+      data_consent_version: string;
       identity_status: string;
       signer_geo_country?: string | null;
       signer_geo_region?: string | null;
@@ -123,6 +132,7 @@ export interface IConstitutionalActionRepository {
       user_agent?: string | null;
     }
   ): Promise<void>;
+  /** Todas las firmas visibles para el usuario (RLS: propias, o todas si es líder). Pagina internamente. */
   listSignaturesForAction(actionId: string): Promise<ActionSignatureRow[]>;
   hasSigned(actionId: string, userId: string): Promise<boolean>;
   evaluateTransitions(actionId: string): Promise<void>;

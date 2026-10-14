@@ -6,6 +6,7 @@ import type {
   PublicacionMode,
   RadicadoMilestone,
 } from "@/core/types/actionState";
+import type { ActionType } from "@/core/entities/ActionType";
 
 export interface ConstitutionalAction {
   id: string;
@@ -41,7 +42,11 @@ export interface ConstitutionalAction {
   created_by: string;
   created_at: string;
   updated_at: string;
-  action_type?: { id: string; name: string; slug: string } | null;
+  /** Hito actual (código definido por tipo en action_type_milestones). */
+  milestone_code?: string | null;
+  /** Último día del término de respuesta (fecha civil, Bogotá). */
+  response_due_on?: string | null;
+  action_type?: ActionType | null;
   signatures_count?: number;
 }
 
@@ -68,4 +73,10 @@ export interface ConstitutionalActionPublic {
   leaders?: ActionLeaderPublic[] | null;
   body_snapshot_sha256?: string | null;
   final_document_sha256?: string | null;
+  milestone_code?: string | null;
+  radicado_at?: string | null;
+  response_due_on?: string | null;
+  content_mode?: ActionContentMode;
+  content_body?: string | null;
+  content_pdf_storage_path?: string | null;
 }

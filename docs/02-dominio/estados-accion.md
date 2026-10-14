@@ -12,7 +12,9 @@
 | `EN_ESPERA_DE_OTRO_PROCESO` | Pausa por trámite previo o paralelo. |
 | `FINALIZADO` | Terminal. |
 
-## Hitos en `RADICADO` (`radicado_milestone`)
+## Hitos en `RADICADO`
+
+Desde la migración 036 los hitos dependen del tipo (`action_type_milestones`, columna `milestone_code`); se cambian con `set_action_milestone()`. Al radicar se guarda la fecha real (`radicado_at`) y, si el tipo tiene término, `response_due_on` en días hábiles. Los hitos judiciales originales siguen siendo:
 
 `RECIBIDA`, `ADMITIDA`, `INADMITIDA`, `EN_TRASLADO`, `EN_PRUEBAS`, `EN_AUDIENCIA`, `EN_DECISION`, `SENTENCIA`.
 

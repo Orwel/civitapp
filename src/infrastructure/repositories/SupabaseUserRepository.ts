@@ -1,6 +1,7 @@
 import type { Profile, PoliticalProfile } from "@/core/entities/Profile";
 import type {
   IUserRepository,
+  SignerContactInput,
   UpdateSignableIdentityInput,
 } from "@/core/repositories/IUserRepository";
 import type { RoleGlobal } from "@/core/enums/Roles";
@@ -42,6 +43,20 @@ export class SupabaseUserRepository implements IUserRepository {
       .single();
     if (error) throw error;
     return data as Profile;
+  }
+
+  async updateSignerContact(userId: string, input: SignerContactInput): Promise<void> {
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({
+        full_name: input.full_name,
+        cedula: input.cedula,
+        address: input.address ?? null,
+        phone: input.phone ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+    if (error) throw error;
   }
 
   async getRoles(userId: string): Promise<RoleGlobal[]> {

@@ -36,6 +36,20 @@
 
 ---
 
+## Sprint 2 — Lanzamiento derecho de petición (octubre 2026)
+
+- [X] Migración 036: tipos configurables, hitos por tipo, días hábiles, firma simple, storage endurecido
+- [X] Firma sin contraseña con código al correo + autorización de datos versionada
+- [X] PDF: texto completo, anexo en tabla, QR de verificación, integridad, documento final guardado
+- [X] Página pública con documento visible y firma inline; `/verify` con comprobación de hash
+- [X] `scripts/supabase-civitapp.sh` (status / sql / apply)
+- [ ] Aplicar 036 en Supabase remoto + plantilla de correo con `{{ .Token }}` + SMTP propio
+- [ ] Reportes ciudadanos (foto + GPS + hora) y mapa
+- [ ] Avisos a firmantes al radicar / vencer término
+- [ ] Escalamiento: crear la siguiente acción desde `next_action_type_slug`
+
+---
+
 ## Backlog
 
 ### Oleada 1 — [X] completada

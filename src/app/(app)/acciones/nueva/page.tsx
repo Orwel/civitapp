@@ -148,7 +148,11 @@ export default function NuevaAccionPage() {
         const types = await repos.catalog.getActionTypes();
         setActionTypes(types);
         if (types.length > 0) {
-          setActionTypeId((prev) => prev || types[0].id);
+          setActionTypeId((prev) => {
+            if (prev) return prev;
+            if (types[0].default_close_rule) setCloseRule(types[0].default_close_rule);
+            return types[0].id;
+          });
         }
       } catch {
         setError("No se pudieron cargar los tipos de acción.");
@@ -303,7 +307,11 @@ export default function NuevaAccionPage() {
               <select
                 id="tipo"
                 value={actionTypeId}
-                onChange={(e) => setActionTypeId(e.target.value)}
+                onChange={(e) => {
+                  setActionTypeId(e.target.value);
+                  const t = actionTypes.find((x) => x.id === e.target.value);
+                  if (t?.default_close_rule) setCloseRule(t.default_close_rule);
+                }}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
               >
                 {actionTypes.map((t) => (
@@ -312,6 +320,18 @@ export default function NuevaAccionPage() {
                   </option>
                 ))}
               </select>
+              {(() => {
+                const t = actionTypes.find((x) => x.id === actionTypeId);
+                if (!t?.description && !t?.response_business_days) return null;
+                return (
+                  <p className="text-xs text-[var(--muted)] mt-1">
+                    {t.description}
+                    {t.response_business_days
+                      ? ` Plazo de respuesta: ${t.response_business_days} días hábiles desde la radicación.`
+                      : ""}
+                  </p>
+                );
+              })()}
             </div>
             <div>
               <label htmlFor="title" className="block text-sm font-semibold mb-1">

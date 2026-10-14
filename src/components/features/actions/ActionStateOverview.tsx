@@ -4,7 +4,10 @@ import {
   ACTION_STATE_LABELS,
   FINALIZADO_RESULT_LABELS,
   RADICADO_MILESTONE_LABELS,
+  type RadicadoMilestone,
 } from "@/core/types/actionState";
+import type { ActionType, ActionTypeMilestone } from "@/core/entities/ActionType";
+import { ResponseDeadline } from "@/components/features/actions/ResponseDeadline";
 import { ActionLeaderPanel } from "@/components/features/actions/ActionLeaderPanel";
 import { LegalDisclaimerBanner } from "@/components/legal/LegalDisclaimerBanner";
 import { ShareBar } from "@/components/features/actions/ShareBar";
@@ -17,14 +20,24 @@ export function ActionStateOverview({
   publicAction,
   isLeader,
   signatures,
+  actionType,
+  milestones = [],
   children,
 }: {
   action: ConstitutionalAction;
   publicAction: ConstitutionalActionPublic | null;
   isLeader: boolean;
   signatures: ActionSignatureRow[];
+  actionType?: ActionType | null;
+  milestones?: ActionTypeMilestone[];
   children?: React.ReactNode;
 }) {
+  const milestoneCode = action.milestone_code ?? action.radicado_milestone ?? null;
+  const milestoneLabel = milestoneCode
+    ? milestones.find((m) => m.code === milestoneCode)?.label ??
+      RADICADO_MILESTONE_LABELS[milestoneCode as RadicadoMilestone] ??
+      milestoneCode
+    : null;
   const count = action.signatures_count ?? signatures.length;
   const goal = action.target_count ?? action.minimum_required;
   const showShare =
@@ -33,12 +46,13 @@ export function ActionStateOverview({
   const showLegal =
     action.state === "EN_CREACION" || action.state === "EN_FIRMA";
   const canDownloadSignedPdf =
-    action.state === "EN_FIRMA" ||
+    isLeader &&
+    (action.state === "EN_FIRMA" ||
     action.state === "FIRMADO" ||
     action.state === "RADICADO" ||
     action.state === "APELADO" ||
     action.state === "EN_ESPERA_DE_OTRO_PROCESO" ||
-    action.state === "FINALIZADO";
+    action.state === "FINALIZADO");
 
   return (
     <div className="flex-1 p-4 lg:p-6 overflow-auto space-y-6 max-w-3xl">
@@ -62,9 +76,9 @@ export function ActionStateOverview({
             <span className="text-[var(--muted)]"> / {goal} firmas</span>
           </p>
         )}
-        {action.radicado_milestone && (
+        {milestoneLabel && (
           <p className="text-sm mt-2 text-[var(--muted)]">
-            Hito: {RADICADO_MILESTONE_LABELS[action.radicado_milestone]}
+            Hito: {milestoneLabel}
             {action.radicado_number ? ` · ${action.radicado_number}` : ""}
             {action.radicado_entity_name ? ` · ${action.radicado_entity_name}` : ""}
           </p>
@@ -76,9 +90,16 @@ export function ActionStateOverview({
         )}
       </div>
 
+      {(action.state === "RADICADO" || action.state === "EN_ESPERA_DE_OTRO_PROCESO") && (
+        <ResponseDeadline
+          dueOn={action.response_due_on}
+          milestoneCode={milestoneCode}
+          businessDays={actionType?.response_business_days}
+        />
+      )}
       {showLegal && <LegalDisclaimerBanner />}
       {showShare && publicAction && <ShareBar action={publicAction} />}
-      {isLeader && <ActionLeaderPanel action={action} />}
+      {isLeader && <ActionLeaderPanel action={action} milestones={milestones} />}
       {children}
       {canDownloadSignedPdf && (
         <a
@@ -86,7 +107,7 @@ export function ActionStateOverview({
           download
           className="inline-flex rounded-lg border border-[var(--accent)] text-[var(--accent)] px-4 py-2 text-sm font-semibold hover:bg-[var(--accent)]/10"
         >
-          Descargar PDF firmado
+          {action.state === "EN_FIRMA" ? "Descargar vista previa con firmas" : "Descargar documento firmado"}
         </a>
       )}
       {signatures.length > 0 && <SignaturesListPanel signatures={signatures} />}

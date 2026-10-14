@@ -6,6 +6,8 @@ export interface Profile {
   photo_url: string | null;
   role?: RoleGlobal;
   cedula: string | null;
+  address?: string | null;
+  phone?: string | null;
   cedula_front_path: string | null;
   cedula_back_path: string | null;
   selfie_path: string | null;

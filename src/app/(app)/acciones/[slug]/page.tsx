@@ -6,11 +6,16 @@ import { createRepositories } from "@/infrastructure/repositories";
 import { getPublicActionBySlug } from "@/application/actions";
 import { ACTION_STATE_LABELS } from "@/core/types/actionState";
 import { ShareBar } from "@/components/features/actions/ShareBar";
-import { cn } from "@/lib/utils";
 import {
   getActionDashboardPath,
   getCanonicalActionDashboardPath,
 } from "@/lib/actionStateRoutes";
+import { ACTION_DOCUMENTS_BUCKET } from "@/lib/actionDocuments";
+import { sanitizeActionHtml } from "@/lib/sanitizeActionHtml";
+import { resolveSignatureLevel, resolveSignerFields } from "@/core/entities/ActionType";
+import { SignActionForm } from "@/components/features/actions/SignActionForm";
+import { PdfViewer } from "@/components/pdf/PdfViewer";
+import { ResponseDeadline } from "@/components/features/actions/ResponseDeadline";
 
 export const dynamic = "force-dynamic";
 
@@ -59,13 +64,10 @@ export async function generateMetadata({
 
 export default async function PublicActionPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ firmar?: string }>;
 }) {
   const { slug } = await params;
-  const { firmar } = await searchParams;
   const supabase = await createClient();
   const repos = createRepositories(supabase);
   const action = await getPublicActionBySlug(repos, slug);
@@ -79,18 +81,20 @@ export default async function PublicActionPage({
   const goal = action.target_count ?? action.minimum_required;
   const pct = goal > 0 ? Math.min(100, Math.round((count / goal) * 100)) : 0;
   const days = daysUntil(action.firma_deadline_at);
-  const wantsSign = firmar === "1" || action.state === "EN_FIRMA";
-  const enFirmaPath = getActionDashboardPath(action.id, "EN_FIRMA");
-  const signHref = user
-    ? enFirmaPath
-    : `/login?redirect=${encodeURIComponent(enFirmaPath)}`;
-  const registerHref = `/register?redirect=${encodeURIComponent(`/acciones/${slug}`)}`;
   const leaders = action.leaders ?? [];
 
-  let fullAction = null;
-  if (user) {
-    fullAction = await repos.actions.getByIdWithType(action.id);
-  }
+  const [actionType, fullAction, profile, hasSigned, pdfUrl] = await Promise.all([
+    repos.catalog.getActionType(action.action_type_id),
+    user ? repos.actions.getByIdWithType(action.id) : Promise.resolve(null),
+    user ? repos.users.getProfile(user.id) : Promise.resolve(null),
+    user ? repos.actions.hasSigned(action.id, user.id) : Promise.resolve(false),
+    action.content_mode === "PDF" && action.content_pdf_storage_path
+      ? supabase.storage
+          .from(ACTION_DOCUMENTS_BUCKET)
+          .createSignedUrl(action.content_pdf_storage_path, 3600)
+          .then((r) => r.data?.signedUrl ?? null)
+      : Promise.resolve(null),
+  ]);
 
   return (
     <div className="flex-1 overflow-auto px-4 py-6 lg:px-8">
@@ -99,10 +103,9 @@ export default async function PublicActionPage({
           ← Acciones en curso
         </Link>
 
-        <ShareBar action={action} />
-
         <header className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+            {actionType?.name ? `${actionType.name} · ` : ""}
             {ACTION_STATE_LABELS[action.state]}
           </p>
           <h1 className="font-display text-2xl font-bold text-[var(--foreground)]">{action.title}</h1>
@@ -110,22 +113,6 @@ export default async function PublicActionPage({
             <p className="text-sm text-[var(--muted)] leading-relaxed">{action.summary}</p>
           )}
         </header>
-
-        {leaders.length > 0 && (
-          <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-              Participantes
-            </p>
-            <ul className="space-y-1">
-              {leaders.map((l, i) => (
-                <li key={i} className="text-sm text-[var(--foreground)]">
-                  <span className="font-medium">{l.full_name ?? "Ciudadano"}</span>
-                  <span className="text-[var(--muted)] ml-2 text-xs">{l.role}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {action.state === "EN_FIRMA" && (
           <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-5 space-y-3">
@@ -145,43 +132,96 @@ export default async function PublicActionPage({
             <div className="h-2 rounded-full bg-[var(--surface-hover)] overflow-hidden">
               <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
             </div>
+            {action.firma_deadline_at && (
+              <p className="text-xs text-[var(--muted)]">
+                Recolección abierta hasta el{" "}
+                {new Date(action.firma_deadline_at).toLocaleDateString("es-CO", {
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "America/Bogota",
+                })}
+              </p>
+            )}
           </div>
         )}
 
-        {!user && (
-          <div className="rounded-card border border-dashed border-[var(--border)] bg-[var(--surface)] p-5 space-y-3 text-center">
-            <p className="text-sm font-semibold text-[var(--foreground)]">
-              El contenido completo de esta acción es visible para usuarios registrados
-            </p>
-            <p className="text-xs text-[var(--muted)]">
-              {action.state === "EN_FIRMA"
-                ? "Regístrate para leer el documento y firmar."
-                : action.state === "EN_CREACION"
-                  ? "Regístrate para ver el borrador y aportar a la redacción."
-                  : "Regístrate para ver el documento y participar en el chat."}
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Link
-                href={registerHref}
-                className="rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--accent-foreground)]"
-              >
-                Crear cuenta gratis
-              </Link>
-              <Link
-                href={`/login?redirect=${encodeURIComponent(`/acciones/${slug}`)}`}
-                className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-semibold"
-              >
-                Iniciar sesión
-              </Link>
-            </div>
-          </div>
+        {action.state === "EN_FIRMA" && hasSigned && (
+          <p className="rounded-card border-2 border-green-600/40 bg-green-500/5 p-4 text-sm font-semibold text-green-800 dark:text-green-300">
+            Ya firmaste esta acción. ¡Gracias! Compártela para sumar más firmas.
+          </p>
         )}
 
-        {user && fullAction?.content_body && fullAction.state !== "EN_CREACION" && (
-          <div className="rounded-card border border-[var(--border)] p-4 bg-[var(--surface)] max-h-96 overflow-auto">
-            <pre className="text-xs whitespace-pre-wrap font-sans text-[var(--foreground)]">
-              {fullAction.content_body}
-            </pre>
+        {action.state === "EN_FIRMA" && !hasSigned && (
+          <a
+            href="#firmar"
+            className="block w-full text-center rounded-lg py-3.5 text-sm font-bold bg-[var(--accent)] text-[var(--accent-foreground)]"
+          >
+            Firmar ahora
+          </a>
+        )}
+
+        {(action.state === "RADICADO" || action.state === "EN_ESPERA_DE_OTRO_PROCESO") && (
+          <ResponseDeadline
+            dueOn={action.response_due_on}
+            milestoneCode={action.milestone_code}
+            businessDays={actionType?.response_business_days}
+          />
+        )}
+
+        <ShareBar action={action} />
+
+        {action.state !== "EN_CREACION" && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">El documento</h2>
+            {pdfUrl ? (
+              <PdfViewer url={pdfUrl} />
+            ) : action.content_body ? (
+              <div
+                className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4 max-h-[32rem] overflow-auto prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: sanitizeActionHtml(action.content_body) }}
+              />
+            ) : (
+              <p className="text-sm text-[var(--muted)]">Sin contenido para mostrar.</p>
+            )}
+            {action.body_snapshot_sha256 && (
+              <p className="text-[10px] font-mono text-[var(--muted)] break-all">
+                Texto congelado · SHA-256 {action.body_snapshot_sha256.slice(0, 32)}…
+              </p>
+            )}
+          </section>
+        )}
+
+        {action.state === "EN_FIRMA" && !hasSigned && (
+          <section id="firmar" className="scroll-mt-6">
+            <SignActionForm
+              actionId={action.id}
+              slug={slug}
+              actionTitle={action.title}
+              signatureLevel={resolveSignatureLevel(actionType)}
+              signerFields={resolveSignerFields(actionType)}
+              sessionEmail={user?.email ?? null}
+              initial={{
+                full_name: profile?.full_name,
+                cedula: profile?.cedula,
+                address: profile?.address,
+                phone: profile?.phone,
+              }}
+            />
+          </section>
+        )}
+
+        {leaders.length > 0 && (
+          <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              Quienes lideran
+            </p>
+            <ul className="space-y-1">
+              {leaders.map((l, i) => (
+                <li key={i} className="text-sm text-[var(--foreground)]">
+                  <span className="font-medium">{l.full_name ?? "Ciudadano"}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -195,18 +235,6 @@ export default async function PublicActionPage({
               Ir al editor colaborativo
             </Link>
           </div>
-        )}
-
-        {wantsSign && action.state === "EN_FIRMA" && (
-          <Link
-            href={signHref}
-            className={cn(
-              "block w-full text-center rounded-lg py-3.5 text-sm font-bold transition",
-              "bg-[var(--accent)] text-[var(--accent-foreground)]"
-            )}
-          >
-            Firmar esta acción
-          </Link>
         )}
 
         {user && (

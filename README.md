@@ -25,6 +25,10 @@ Next.js 15 + Supabase, arquitectura limpia.
    - En **Ajustes → API** recarga el schema (o reinicia el proyecto) para que PostgREST vea columnas nuevas como `descripcion`.
    - Crea el bucket de storage `attachements_iniciatives` desde el dashboard si la migración 009 no lo crea automáticamente.
 
+   - Para revisar o aplicar migraciones desde la terminal sin el dashboard: `scripts/supabase-civitapp.sh status` (requiere `SUPABASE_ACCESS_TOKEN` y `CIVITAPP_PROJECT_REF`; ver cabecera del script).
+   - La migración `024` depende de columnas de la `027`: si corres todo desde cero, vuelve a correr la `024` después de la `027` (la `036` recrea la vista igualmente).
+   - Firma por código: configura la plantilla de correo y el SMTP como se indica en [firmar-accion.md](docs/04-casos-de-uso/firmar-accion.md).
+
 3. Instala y arranca:
 
 ```bash

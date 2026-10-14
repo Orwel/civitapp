@@ -3,6 +3,7 @@ import type {
   ConstitutionalActionPublic,
 } from "@/core/entities/ConstitutionalAction";
 import type {
+  ActionSignatureRow,
   CreateActionInput,
   IConstitutionalActionRepository,
 } from "@/core/repositories/IConstitutionalActionRepository";
@@ -87,7 +88,7 @@ export class SupabaseConstitutionalActionRepository
   async getByIdWithType(id: string): Promise<ConstitutionalAction | null> {
     const { data, error } = await this.supabase
       .from("constitutional_actions")
-      .select("*, action_types(id, name, slug)")
+      .select("*, action_types(*)")
       .eq("id", id)
       .single();
     if (error) {
@@ -100,7 +101,7 @@ export class SupabaseConstitutionalActionRepository
   async getBySlug(slug: string): Promise<ConstitutionalAction | null> {
     const { data, error } = await this.supabase
       .from("constitutional_actions")
-      .select("*, action_types(id, name, slug)")
+      .select("*, action_types(*)")
       .eq("slug", slug)
       .single();
     if (error) {
@@ -126,7 +127,7 @@ export class SupabaseConstitutionalActionRepository
   async listByCreator(userId: string): Promise<ConstitutionalAction[]> {
     const { data, error } = await this.supabase
       .from("constitutional_actions")
-      .select("*, action_types(id, name, slug)")
+      .select("*, action_types(*)")
       .eq("created_by", userId)
       .order("updated_at", { ascending: false });
     if (error) throw error;
@@ -143,7 +144,7 @@ export class SupabaseConstitutionalActionRepository
     if (ids.length === 0) return [];
     const { data, error } = await this.supabase
       .from("constitutional_actions")
-      .select("*, action_types(id, name, slug)")
+      .select("*, action_types(*)")
       .in("id", ids)
       .order("updated_at", { ascending: false });
     if (error) throw error;
@@ -223,6 +224,8 @@ export class SupabaseConstitutionalActionRepository
       finalizado_result?: FinalizadoResult;
       radicado_number?: string;
       radicado_entity_name?: string;
+      radicado_at?: string;
+      milestone_code?: string;
     }
   ): Promise<ConstitutionalAction> {
     const { data, error } = await this.supabase.rpc("transition_action_state", {
@@ -233,9 +236,32 @@ export class SupabaseConstitutionalActionRepository
       p_finalizado_result: options?.finalizado_result ?? null,
       p_radicado_number: options?.radicado_number ?? null,
       p_radicado_entity_name: options?.radicado_entity_name ?? null,
+      p_radicado_at: options?.radicado_at ?? null,
+      p_milestone_code: options?.milestone_code ?? null,
     });
     if (error) throw error;
     return data as ConstitutionalAction;
+  }
+
+  async setMilestone(actionId: string, code: string): Promise<ConstitutionalAction> {
+    const { data, error } = await this.supabase.rpc("set_action_milestone", {
+      p_action_id: actionId,
+      p_code: code,
+    });
+    if (error) throw error;
+    return data as ConstitutionalAction;
+  }
+
+  async setFinalDocument(actionId: string, storagePath: string, sha256: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("constitutional_actions")
+      .update({
+        final_document_storage_path: storagePath,
+        final_document_sha256: sha256,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", actionId);
+    if (error) throw error;
   }
 
   async signAction(
@@ -251,6 +277,12 @@ export class SupabaseConstitutionalActionRepository
         snapshot_full_name: snapshot.full_name,
         snapshot_cedula: snapshot.cedula,
         snapshot_signature_storage_path: snapshot.signature_path,
+        signature_level: snapshot.signature_level,
+        snapshot_address: snapshot.address ?? null,
+        snapshot_phone: snapshot.phone ?? null,
+        snapshot_email: snapshot.email ?? null,
+        data_consent_at: snapshot.data_consent_at,
+        data_consent_version: snapshot.data_consent_version,
         identity_verified_at_sign: snapshot.identity_status,
         signer_geo_country: snapshot.signer_geo_country ?? null,
         signer_geo_region: snapshot.signer_geo_region ?? null,
@@ -267,15 +299,24 @@ export class SupabaseConstitutionalActionRepository
   }
 
   async listSignaturesForAction(actionId: string) {
-    const { data, error } = await this.supabase
-      .from("constitutional_action_signatures")
-      .select(
-        "signer_user_id, snapshot_full_name, snapshot_cedula, signed_at, signed_at_co_pretty, signer_geo_city, signer_geo_region, signer_geo_country, signature_hash, snapshot_signature_storage_path, client_ip, user_agent"
-      )
-      .eq("action_id", actionId)
-      .order("signed_at", { ascending: true });
-    if (error) throw error;
-    return data ?? [];
+    // PostgREST corta en 1.000 filas por defecto: se pagina para no perder firmas.
+    const PAGE = 1000;
+    const rows: ActionSignatureRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await this.supabase
+        .from("constitutional_action_signatures")
+        .select(
+          "signer_user_id, snapshot_full_name, snapshot_cedula, signed_at, signed_at_co_pretty, signer_geo_city, signer_geo_region, signer_geo_country, signature_hash, snapshot_signature_storage_path, signature_level"
+        )
+        .eq("action_id", actionId)
+        .order("signed_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      rows.push(...((data ?? []) as ActionSignatureRow[]));
+      if (!data || data.length < PAGE) break;
+    }
+    return rows;
   }
 
   async hasSigned(actionId: string, userId: string): Promise<boolean> {

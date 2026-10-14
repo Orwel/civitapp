@@ -7,7 +7,7 @@ export default async function ApeladoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { action, publicAction, signatures, isLeader } = await loadActionStatePage(
+  const { action, publicAction, signatures, isLeader, actionType, milestones } = await loadActionStatePage(
     id,
     "APELADO"
   );
@@ -18,6 +18,8 @@ export default async function ApeladoPage({
       publicAction={publicAction}
       isLeader={isLeader}
       signatures={signatures}
+      actionType={actionType}
+      milestones={milestones}
     />
   );
 }

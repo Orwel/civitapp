@@ -11,6 +11,9 @@ import { ActionLeaderPanel } from "@/components/features/actions/ActionLeaderPan
 import { LegalDisclaimerBanner } from "@/components/legal/LegalDisclaimerBanner";
 import { ShareBar } from "@/components/features/actions/ShareBar";
 import { ActionAuxLinks } from "@/components/features/actions/ActionAuxLinks";
+import { resolveSignatureLevel, resolveSignerFields } from "@/core/entities/ActionType";
+import { sanitizeActionHtml } from "@/lib/sanitizeActionHtml";
+import { isActionLeader } from "@/lib/actionLeader";
 
 export default async function EnFirmaPage({
   params,
@@ -32,7 +35,11 @@ export default async function EnFirmaPage({
   const publicAction = await getPublicActionBySlug(repos, action.slug);
   const hasSigned = await repos.actions.hasSigned(id, user.id);
   const signatures = await repos.actions.listSignaturesForAction(id);
-  const isLeader = user.id === action.created_by;
+  const isLeader = user.id === action.created_by || (await isActionLeader(supabase, id, user.id));
+  const [actionType, profile] = await Promise.all([
+    repos.catalog.getActionType(action.action_type_id),
+    repos.users.getProfile(user.id),
+  ]);
 
   const mySignature = hasSigned
     ? signatures.find((s) => s.signer_user_id === user.id) ?? null
@@ -70,9 +77,22 @@ export default async function EnFirmaPage({
         </header>
 
         <EnFirmaSignPanel
-          actionId={id}
           hasSigned={hasSigned}
           mySignature={mySignature}
+          formProps={{
+            actionId: id,
+            slug: action.slug,
+            actionTitle: action.title,
+            signatureLevel: resolveSignatureLevel(actionType),
+            signerFields: resolveSignerFields(actionType),
+            sessionEmail: user.email ?? null,
+            initial: {
+              full_name: profile?.full_name,
+              cedula: profile?.cedula,
+              address: profile?.address,
+              phone: profile?.phone,
+            },
+          }}
         />
 
         <section className="space-y-2 w-full">
@@ -84,7 +104,7 @@ export default async function EnFirmaPage({
           ) : action.content_body ? (
             <div
               className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4 max-h-[28rem] overflow-auto prose prose-sm dark:prose-invert max-w-none w-full"
-              dangerouslySetInnerHTML={{ __html: action.content_body }}
+              dangerouslySetInnerHTML={{ __html: sanitizeActionHtml(action.content_body) }}
             />
           ) : (
             <p className="text-sm text-[var(--muted)]">Sin contenido para mostrar.</p>
@@ -98,13 +118,15 @@ export default async function EnFirmaPage({
 
         <SignaturesListPanel signatures={signatures} highlightUserId={user.id} />
 
-        <a
-          href={`/api/acciones/${id}/signed-pdf`}
-          download
-          className="inline-flex rounded-lg border border-[var(--accent)] text-[var(--accent)] px-4 py-2 text-sm font-semibold hover:bg-[var(--accent)]/10"
-        >
-          Descargar PDF firmado
-        </a>
+        {isLeader && (
+          <a
+            href={`/api/acciones/${id}/signed-pdf`}
+            download
+            className="inline-flex rounded-lg border border-[var(--accent)] text-[var(--accent)] px-4 py-2 text-sm font-semibold hover:bg-[var(--accent)]/10"
+          >
+            Descargar vista previa con firmas
+          </a>
+        )}
 
         <details className="rounded-card border border-[var(--border)] p-4 w-full">
           <summary className="text-sm font-semibold cursor-pointer">Más opciones</summary>
