@@ -8,6 +8,7 @@ import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { LegalDisclaimerBanner } from "@/components/legal/LegalDisclaimerBanner";
 import { PdfDraftSection } from "@/components/features/actions/PdfDraftSection";
 import { getActionDashboardPath } from "@/lib/actionStateRoutes";
+import { readStoredTemplate } from "@/core/templates/evaluate";
 import {
   acquireEditLockAction,
   heartbeatEditLockAction,
@@ -95,18 +96,38 @@ export function ActionEditorClient({
   }
 
   const hasPdf = Boolean(action.content_pdf_storage_path);
+  const hasTemplate = readStoredTemplate(action.content_data) !== null;
+  const isTextLike = contentMode === "TEXT" || contentMode === "TEMPLATE";
+
+  async function openTemplateWizard() {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      await saveActionDraftAction(action.id, { content_body: html, content_data: json });
+    }
+    router.push(`/dashboard/acciones/${action.id}/plantilla`);
+  }
 
   return (
     <div className="space-y-4">
       <LegalDisclaimerBanner compact />
 
       <div className="flex flex-wrap gap-2">
+        {hasTemplate && (
+          <button
+            type="button"
+            disabled={modeSwitching}
+            onClick={() => void openTemplateWizard()}
+            className="rounded-lg px-3 py-2 text-xs font-semibold border border-[var(--accent)] text-[var(--accent)]"
+          >
+            Asistente guiado
+          </button>
+        )}
         <button
           type="button"
           disabled={!canEdit || modeSwitching}
-          onClick={() => void switchMode("TEXT")}
+          onClick={() => void switchMode(hasTemplate ? "TEMPLATE" : "TEXT")}
           className={`rounded-lg px-3 py-2 text-xs font-semibold border ${
-            contentMode === "TEXT"
+            isTextLike
               ? "bg-[var(--accent)] text-[var(--accent-foreground)] border-[var(--accent)]"
               : "border-[var(--border)]"
           }`}
@@ -139,7 +160,7 @@ export function ActionEditorClient({
           </button>
         </div>
       )}
-      {canEdit && contentMode === "TEXT" && (
+      {canEdit && isTextLike && (
         <p className="text-xs text-[var(--muted)]">
           {saveStatus === "saving"
             ? "Guardando…"

@@ -9,6 +9,8 @@
 | [Acciones constitucionales](02-dominio/acciones-constitucionales.md) | Agregado raíz |
 | [Estados y transiciones](02-dominio/estados-accion.md) | Máquina de estados |
 | [Catálogo de tipos](02-dominio/catalogo-acciones.md) | 6 tipos judiciales |
+| [Motor de plantillas](02-dominio/motor-de-plantillas.md) | Asistente guiado + Handlebars (v1) |
+| [Plantilla tutela](02-dominio/plantilla-tutela.md) | Campos, reglas y texto de la tutela (v1) |
 
 ## Arquitectura
 
